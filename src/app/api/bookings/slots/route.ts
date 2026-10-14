@@ -3,21 +3,19 @@ import prisma from '@/lib/prisma';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const artistId = searchParams.get('artistId');
+  const artistId = searchParams.get('artistId') || 'admin-1';
   const dateStr = searchParams.get('date'); // YYYY-MM-DD
-  const durationMin = parseInt(searchParams.get('durationMin') || '60', 10);
+  const durationMin = parseInt(searchParams.get('durationMin') || '90', 10);
 
-  if (!artistId || !dateStr) {
-    return NextResponse.json({ error: 'artistId and date are required' }, { status: 400 });
+  if (!dateStr) {
+    return NextResponse.json({ error: 'date is required' }, { status: 400 });
   }
 
-  // 1. Parse dates
   const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
   const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
 
   try {
-    // 2. Fetch existing bookings for the artist on that day
-    // Exclude CANCELLED, NO_SHOW, EXPIRED bookings
+    // Exclude REJECTED, CANCELLED, NO_SHOW, EXPIRED bookings
     const bookings = await prisma.booking.findMany({
       where: {
         artistId,
@@ -26,7 +24,7 @@ export async function GET(request: Request) {
           lte: endOfDay,
         },
         status: {
-          notIn: ['CANCELLED', 'NO_SHOW', 'EXPIRED']
+          notIn: ['REJECTED', 'CANCELLED', 'NO_SHOW', 'EXPIRED']
         }
       },
       orderBy: {
@@ -34,13 +32,10 @@ export async function GET(request: Request) {
       }
     });
 
-    // 3. Define working hours (Mocking 09:00 to 18:00 UTC)
-    // In a real MVP, this should come from Artist settings
     const slots = [];
     let currentSlot = new Date(`${dateStr}T09:00:00.000Z`);
-    const endWorkingHour = new Date(`${dateStr}T18:00:00.000Z`);
+    const endWorkingHour = new Date(`${dateStr}T20:00:00.000Z`);
 
-    // 4. Generate 30-min interval slots and check availability
     while (currentSlot < endWorkingHour) {
       const slotEnd = new Date(currentSlot.getTime() + durationMin * 60000);
 
@@ -48,7 +43,6 @@ export async function GET(request: Request) {
         break;
       }
 
-      // Check overlap
       const isOverlapping = bookings.some(booking => {
         return (
           (currentSlot >= booking.startTime && currentSlot < booking.endTime) ||

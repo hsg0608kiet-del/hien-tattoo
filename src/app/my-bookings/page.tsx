@@ -1,101 +1,325 @@
-import prisma from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default async function MyBookingsPage() {
-  const session = await getServerSession();
-  if (!session || !session.user) {
-    redirect('/login');
+const STATUS_BADGE: Record<string, { label: string; className: string }> = {
+  PENDING_APPROVAL: {
+    label: 'Chờ Admin Duyệt',
+    className: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+  },
+  APPROVED: {
+    label: 'Đã Chấp Nhận (Chờ Cọc)',
+    className: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
+  },
+  PENDING_DEPOSIT: {
+    label: 'Cần Đặt Cọc',
+    className: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+  },
+  CONFIRMED: {
+    label: 'Đã Xác Nhận & Đã Cọc',
+    className: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
+  },
+  REJECTED: {
+    label: 'Từ Chối',
+    className: 'bg-red-500/20 text-red-400 border border-red-500/30',
+  },
+  COMPLETED: {
+    label: 'Hoàn Thành',
+    className: 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
+  },
+  CANCELLED: {
+    label: 'Đã Hủy',
+    className: 'bg-neutral-800 text-neutral-400 border border-neutral-700',
+  },
+};
+
+export default function MyBookingsPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [customRequests, setCustomRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [bRes, cRes] = await Promise.all([
+        fetch('/api/bookings/my'),
+        fetch('/api/custom-requests'),
+      ]);
+      if (bRes.ok) {
+        const bData = await bRes.json();
+        setBookings(bData.bookings || []);
+      }
+      if (cRes.ok) {
+        const cData = await cRes.json();
+        setCustomRequests(cData.requests || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      loadData();
+    } else if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status]);
+
+  const handleAcceptQuoteAndBook = async (customReqId: string) => {
+    await fetch(`/api/custom-requests/${customReqId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'ACCEPT_QUOTE' }),
+    });
+    router.push(`/booking?customRequestId=${customReqId}`);
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    if (!confirm('Bạn có chắc chắn muốn hủy lịch hẹn này?')) return;
+    const res = await fetch(`/api/bookings/${bookingId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'CANCEL' }),
+    });
+    if (res.ok) {
+      loadData();
+    }
+  };
+
+  if (status === 'loading' || loading) {
+    return <div className="text-center py-20 text-neutral-400 animate-pulse">Đang tải dữ liệu của bạn...</div>;
   }
 
-  const bookings = await prisma.booking.findMany({
-    where: { customerId: (session.user as any).id },
-    include: {
-      artist: true,
-      quote: {
-        include: { serviceRequest: true }
-      }
-    },
-    orderBy: { startTime: 'desc' }
-  });
-
   return (
-    <div className="w-full max-w-5xl animate-slide-up">
-      <div className="mb-12">
-        <h1 className="text-4xl font-bold mb-4">Lịch Hẹn Của Tôi</h1>
-        <p className="text-neutral-400">Quản lý các lịch hẹn xăm hình và tư vấn của bạn.</p>
-      </div>
-
-      {bookings.length === 0 ? (
-        <div className="text-center py-20 glass-dark rounded-3xl border border-neutral-800">
-          <p className="text-neutral-500 mb-6">Bạn chưa có lịch hẹn nào.</p>
-          <Link href="/booking" className="px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-colors">
-            Đặt Lịch Ngay
+    <div className="w-full max-w-6xl animate-slide-up space-y-14">
+      {/* SECTION 1: Custom Tattoo Requests & Notifications */}
+      <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Ý Tưởng Xăm Riêng & Báo Giá Từ Studio</h1>
+            <p className="text-neutral-400 text-sm">
+              Theo dõi phản hồi báo giá và thời gian thực hiện dự kiến từ Admin cho các mẫu thiết kế riêng của bạn.
+            </p>
+          </div>
+          <Link
+            href="/custom-request"
+            className="px-5 py-2.5 bg-amber-400 text-black font-bold rounded-full text-sm hover:bg-amber-300 transition-all self-start"
+          >
+            + Gửi Ý Tưởng Mới
           </Link>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {bookings.map(b => (
-            <div key={b.id} className="glass-dark p-6 rounded-2xl border border-neutral-800 flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-start mb-4">
+
+        {customRequests.length === 0 ? (
+          <div className="glass-dark p-8 rounded-2xl border border-neutral-800 text-center text-neutral-400 text-sm">
+            Bạn chưa gửi yêu cầu thiết kế hình xăm riêng nào.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {customRequests.map((req) => {
+              const images: string[] = JSON.parse(req.imagesJson || '[]');
+              return (
+                <div
+                  key={req.id}
+                  className="glass-dark p-6 rounded-2xl border border-neutral-800 flex flex-col justify-between"
+                >
                   <div>
-                    <h3 className="font-bold text-lg text-white">{b.quote?.serviceRequest?.serviceType || 'TATTOO'}</h3>
-                    <p className="text-sm text-neutral-400">ID: {b.id.slice(0,8)}</p>
-                  </div>
-                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                    b.status === 'CONFIRMED' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                    b.status === 'PENDING_DEPOSIT' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                    b.status === 'COMPLETED' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
-                    'bg-neutral-800 text-neutral-400'
-                  }`}>
-                    {b.status}
-                  </span>
-                </div>
-                
-                <div className="space-y-2 mb-6 text-sm">
-                  <div className="flex text-neutral-300">
-                    <span className="w-24 text-neutral-500">Thời gian:</span>
-                    <span>{new Date(b.startTime).toLocaleString('vi-VN')}</span>
-                  </div>
-                  <div className="flex text-neutral-300">
-                    <span className="w-24 text-neutral-500">Artist:</span>
-                    <span>{b.artist.name}</span>
-                  </div>
-                  {b.quote && (
-                    <div className="flex text-neutral-300">
-                      <span className="w-24 text-neutral-500">Đã cọc:</span>
-                      <span className="font-medium text-white">{b.quote.depositAmount.toLocaleString()} ₫</span>
+                    <div className="flex justify-between items-start gap-2 mb-4">
+                      <div>
+                        <span className="text-xs text-neutral-400">Vị trí: {req.placement} • Kích thước: {req.size}</span>
+                        <h3 className="font-bold text-white text-lg mt-0.5">{req.description}</h3>
+                      </div>
+                      <span
+                        className={`text-xs px-3 py-1 rounded-full font-bold whitespace-nowrap ${
+                          req.status === 'QUOTED'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse'
+                            : req.status === 'ACCEPTED' || req.status === 'BOOKED'
+                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                            : req.status === 'REJECTED'
+                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}
+                      >
+                        {req.status === 'PENDING' && 'Đang Chờ Báo Giá'}
+                        {req.status === 'QUOTED' && '🔔 Đã Có Báo Giá Mới!'}
+                        {req.status === 'ACCEPTED' && 'Đã Chấp Nhận Giá'}
+                        {req.status === 'BOOKED' && 'Đã Đặt Lịch Xăm'}
+                        {req.status === 'REJECTED' && 'Từ Chối'}
+                      </span>
                     </div>
+
+                    {/* Uploaded Reference Images */}
+                    {images.length > 0 && (
+                      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+                        {images.map((img, idx) => (
+                          <img
+                            key={idx}
+                            src={img}
+                            alt="Ref"
+                            className="w-20 h-20 rounded-xl object-cover border border-neutral-700 shrink-0"
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Quote Box from Admin */}
+                    {(req.status === 'QUOTED' || req.status === 'ACCEPTED' || req.status === 'BOOKED') && (
+                      <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/30 space-y-2 text-sm mb-4">
+                        <div className="font-bold text-emerald-300">Bảng Báo Giá Từ Admin Studio:</div>
+                        <div className="flex justify-between">
+                          <span className="text-neutral-400">Chi phí thực hiện:</span>
+                          <span className="font-bold text-amber-400 text-base">
+                            {req.quotedPrice?.toLocaleString('vi-VN')} ₫
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-neutral-400">Thời gian ước tính:</span>
+                          <span className="font-semibold text-white">{req.estimatedDuration} phút</span>
+                        </div>
+                        {req.adminNote && (
+                          <div className="text-xs text-neutral-300 pt-1 border-t border-emerald-500/20">
+                            <strong>Lời nhắn từ Artist:</strong> {req.adminNote}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {(req.status === 'QUOTED' || req.status === 'ACCEPTED') && (
+                    <button
+                      onClick={() => handleAcceptQuoteAndBook(req.id)}
+                      className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-neutral-200 transition-all text-sm"
+                    >
+                      Chấp Nhận Báo Giá & Chọn Ngày Giờ Đặt Lịch →
+                    </button>
                   )}
                 </div>
-              </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-              {/* Actions based on status */}
-              <div className="flex gap-3 mt-4 pt-4 border-t border-neutral-800">
-                {b.status === 'PENDING_DEPOSIT' && (
-                  <Link href={`/checkout/${b.id}`} className="flex-1 text-center py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors">
-                    Thanh Toán Cọc
-                  </Link>
-                )}
-                
-                {(b.status === 'PENDING_DEPOSIT' || b.status === 'CONFIRMED') && (
-                  <button className="flex-1 py-2 bg-neutral-900 border border-neutral-700 text-white rounded-lg font-medium hover:bg-neutral-800 transition-colors">
-                    Hủy Lịch
-                  </button>
-                )}
-
-                {b.status === 'COMPLETED' && (
-                  <button className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                    Đánh Giá
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+      {/* SECTION 2: Booking History */}
+      <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-white">Lịch Sử Đơn Đặt Lịch Của Tôi</h2>
+            <p className="text-neutral-400 text-sm">
+              Theo dõi trạng thái đơn đặt lịch: Chờ duyệt, Đã chấp nhận, Cần cọc, hoặc Từ chối (kèm lý do).
+            </p>
+          </div>
+          <Link
+            href="/booking"
+            className="px-5 py-2.5 bg-white text-black font-bold rounded-full text-sm hover:bg-neutral-200 transition-all self-start"
+          >
+            + Đặt Lịch Mới
+          </Link>
         </div>
-      )}
+
+        {bookings.length === 0 ? (
+          <div className="text-center py-16 glass-dark rounded-3xl border border-neutral-800">
+            <p className="text-neutral-500 mb-6">Bạn chưa có lịch hẹn nào.</p>
+            <Link href="/portfolio" className="px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-neutral-200">
+              Chọn Mẫu & Đặt Lịch Ngay
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {bookings.map((b) => {
+              const badge = STATUS_BADGE[b.status] || {
+                label: b.status,
+                className: 'bg-neutral-800 text-neutral-300',
+              };
+
+              return (
+                <div
+                  key={b.id}
+                  className="glass-dark p-6 rounded-2xl border border-neutral-800 flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex justify-between items-start gap-2 mb-4">
+                      <div>
+                        <h3 className="font-bold text-lg text-white">
+                          {b.portfolioItem
+                            ? b.portfolioItem.title
+                            : b.customRequest
+                            ? `Hình xăm thiết kế riêng (${b.customRequest.placement})`
+                            : 'Lịch Hẹn Xăm Hình'}
+                        </h3>
+                        <p className="text-xs text-neutral-500">Mã đơn: #{b.id.slice(0, 8)}</p>
+                      </div>
+                      <span className={`text-xs px-3 py-1 rounded-full font-semibold ${badge.className}`}>
+                        {badge.label}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 mb-4 text-sm bg-neutral-900/50 p-4 rounded-xl border border-neutral-800/80">
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Thời gian hẹn:</span>
+                        <span className="font-semibold text-white">
+                          {new Date(b.startTime).toLocaleString('vi-VN')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Thời lượng dự kiến:</span>
+                        <span className="text-white">{b.durationMin || b.quote?.durationMin || 90} phút</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Tổng giá:</span>
+                        <span className="font-bold text-amber-400">
+                          {(b.totalPrice || b.quote?.totalPrice || 0).toLocaleString('vi-VN')} ₫
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Tiền cọc giữ chỗ:</span>
+                        <span className="font-semibold text-emerald-400">
+                          {(b.depositAmount || b.quote?.depositAmount || 0).toLocaleString('vi-VN')} ₫
+                        </span>
+                      </div>
+                    </div>
+
+                    {b.status === 'REJECTED' && b.rejectReason && (
+                      <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 mb-4">
+                        <strong>Lý do Studio từ chối:</strong> {b.rejectReason}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3 pt-3 border-t border-neutral-800">
+                    {(b.status === 'APPROVED' || b.status === 'PENDING_DEPOSIT') && (
+                      <Link
+                        href={`/checkout/${b.id}`}
+                        className="flex-1 text-center py-2.5 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-colors"
+                      >
+                        Thanh Toán Cọc Ngay
+                      </Link>
+                    )}
+
+                    {(b.status === 'PENDING_APPROVAL' ||
+                      b.status === 'APPROVED' ||
+                      b.status === 'PENDING_DEPOSIT') && (
+                      <button
+                        onClick={() => handleCancelBooking(b.id)}
+                        className="px-4 py-2.5 bg-neutral-900 border border-neutral-700 text-neutral-300 rounded-xl text-sm hover:bg-neutral-800 hover:text-red-400 transition-colors"
+                      >
+                        Hủy Đơn
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

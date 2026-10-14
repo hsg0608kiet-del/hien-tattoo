@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -12,28 +13,39 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       customerId,
-      artistId,
-      serviceType, // 'CONSULTATION' | 'DESIGN' | 'TATTOO'
-      totalPrice,
-      depositAmount,
-      durationMin,
+      artistId = 'admin-1',
+      portfolioItemId,
+      customRequestId,
+      serviceType,
+      totalPrice = 1200000,
+      depositAmount = 300000,
+      durationMin = 90,
       startTime,
-      endTime
+      endTime,
+      note
     } = body;
 
-    // Basic validation
-    if (!customerId || !artistId || !startTime || !endTime) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    const finalCustomerId = customerId || (session.user as any).id;
+
+    if (!finalCustomerId || !startTime || !endTime) {
+      return NextResponse.json({ error: 'Vui lòng chọn ngày và khung giờ đặt lịch!' }, { status: 400 });
     }
 
-    // 1. Transaction to check availability and hold the slot
     const result = await prisma.$transaction(async (tx) => {
-      // a. Check if the slot is still available for the artist
+      // Find valid artist/admin
+      let targetArtistId = artistId;
+      const artistExists = await tx.user.findUnique({ where: { id: targetArtistId } });
+      if (!artistExists) {
+        const firstAdmin = await tx.user.findFirst({ where: { role: 'ADMIN' } });
+        if (firstAdmin) targetArtistId = firstAdmin.id;
+      }
+
+      // Check overlapping bookings
       const overlappingBookings = await tx.booking.findMany({
         where: {
-          artistId,
+          artistId: targetArtistId,
           status: {
-            notIn: ['CANCELLED', 'NO_SHOW', 'EXPIRED']
+            notIn: ['REJECTED', 'CANCELLED', 'NO_SHOW', 'EXPIRED']
           },
           OR: [
             {
@@ -48,51 +60,65 @@ export async function POST(request: Request) {
         throw new Error('SLOT_TAKEN');
       }
 
-      // b. Create a ServiceRequest (Simplified for MVP hold)
+      // Create ServiceRequest & Quote for compatibility
       const serviceRequest = await tx.serviceRequest.create({
         data: {
-          customerId,
-          serviceType: serviceType || 'TATTOO',
-          status: 'ACCEPTED' // Auto accept for flash/consultation
+          customerId: finalCustomerId,
+          serviceType: serviceType || (customRequestId ? 'CUSTOM_TATTOO' : 'PORTFOLIO_TATTOO'),
+          status: 'ACCEPTED'
         }
       });
 
-      // c. Create a Quote
       const quote = await tx.quote.create({
         data: {
           serviceRequestId: serviceRequest.id,
-          totalPrice: totalPrice || 0,
-          depositAmount: depositAmount || 0,
-          upfrontPayment: depositAmount || 0,
-          durationMin: durationMin || 60,
+          totalPrice: Number(totalPrice),
+          depositAmount: Number(depositAmount),
+          upfrontPayment: Number(depositAmount),
+          durationMin: Number(durationMin),
           status: 'ACCEPTED',
-          // Hold expires in 10 minutes
-          expiresAt: new Date(Date.now() + 10 * 60000)
+          expiresAt: new Date(Date.now() + 24 * 60 * 60000)
         }
       });
 
-      // d. Create Booking with PENDING_DEPOSIT
+      // If booking from a CustomRequest, mark CustomRequest as BOOKED
+      if (customRequestId) {
+        await tx.customRequest.update({
+          where: { id: customRequestId },
+          data: { status: 'BOOKED' }
+        });
+      }
+
+      // Create Booking (starts as PENDING_APPROVAL so Admin can Approve/Reject, or Client can pay deposit)
       const booking = await tx.booking.create({
         data: {
-          customerId,
-          artistId,
+          customerId: finalCustomerId,
+          artistId: targetArtistId,
+          portfolioItemId: portfolioItemId || null,
+          customRequestId: customRequestId || null,
           quoteId: quote.id,
+          totalPrice: Number(totalPrice),
+          depositAmount: Number(depositAmount),
+          durationMin: Number(durationMin),
           startTime: new Date(startTime),
           endTime: new Date(endTime),
-          status: 'PENDING_DEPOSIT'
+          status: 'PENDING_APPROVAL',
+          note: note?.trim() || null
         },
         include: {
-          quote: true
+          quote: true,
+          portfolioItem: true,
+          customRequest: true
         }
       });
 
       return booking;
     });
 
-    return NextResponse.json({ booking: result });
+    return NextResponse.json({ booking: result }, { status: 201 });
   } catch (error: any) {
     if (error.message === 'SLOT_TAKEN') {
-      return NextResponse.json({ error: 'Selected slot is no longer available' }, { status: 409 });
+      return NextResponse.json({ error: 'Khung giờ này vừa có khách đặt, vui lòng chọn khung giờ khác!' }, { status: 409 });
     }
     console.error('Hold Booking Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

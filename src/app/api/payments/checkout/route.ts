@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -16,12 +17,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Booking ID is required' }, { status: 400 });
     }
 
-    // Update booking status to CONFIRMED
+    // Update booking status to CONFIRMED (whether it was PENDING_DEPOSIT, PENDING_APPROVAL, or APPROVED)
     const updatedBooking = await prisma.booking.update({
-      where: { 
+      where: {
         id: bookingId,
-        // Only allow confirming if it's pending deposit
-        status: 'PENDING_DEPOSIT' 
       },
       data: {
         status: 'CONFIRMED'

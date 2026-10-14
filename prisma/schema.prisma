@@ -10,69 +10,91 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   name      String
-  email     String   @unique
-  phone     String?
-  role      String   @default("CUSTOMER")
+  phone     String   @unique
+  email     String?  @unique
+  password  String?
+  role      String   @default("CLIENT") // "CLIENT" | "ADMIN"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  customerBookings Booking[] @relation("CustomerBookings")
-  artistBookings   Booking[] @relation("ArtistBookings")
+  customerBookings Booking[]        @relation("CustomerBookings")
+  artistBookings   Booking[]        @relation("ArtistBookings")
   serviceRequests  ServiceRequest[]
+  customRequests   CustomRequest[]  @relation("ClientCustomRequests")
   portfolioItems   PortfolioItem[]  @relation("ArtistPortfolio")
   reviewsGiven     Review[]         @relation("CustomerReviews")
 }
 
 model Review {
-  id          String   @id @default(uuid())
-  bookingId   String   @unique
-  booking     Booking  @relation(fields: [bookingId], references: [id])
-  customerId  String
-  customer    User     @relation("CustomerReviews", fields: [customerId], references: [id])
-  rating      Int
-  comment     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  bookingId  String   @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  customerId String
+  customer   User     @relation("CustomerReviews", fields: [customerId], references: [id])
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model PortfolioItem {
-  id          String   @id @default(uuid())
-  artistId    String
-  artist      User     @relation("ArtistPortfolio", fields: [artistId], references: [id])
-  imageUrl    String
-  title       String
-  style       String?
-  placement   String?
-  description String?
-  isFlash     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String    @id @default(uuid())
+  artistId          String
+  artist            User      @relation("ArtistPortfolio", fields: [artistId], references: [id])
+  imageUrl          String
+  title             String
+  style             String?
+  placement         String?
+  description       String?
+  estimatedPrice    Int       @default(1500000)
+  estimatedDuration Int       @default(120) // Duration in minutes (e.g., 120 mins)
+  isFlash           Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  bookings          Booking[]
+}
+
+model CustomRequest {
+  id                String    @id @default(uuid())
+  clientId          String
+  client            User      @relation("ClientCustomRequests", fields: [clientId], references: [id])
+  imagesJson        String    // JSON string array of uploaded image URLs or base64 data
+  description       String
+  placement         String
+  size              String
+  status            String    @default("PENDING") // PENDING, QUOTED, ACCEPTED, REJECTED, BOOKED
+  quotedPrice       Int?
+  estimatedDuration Int?      // Duration in minutes
+  adminNote         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  bookings          Booking[]
 }
 
 model Service {
-  id          String      @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   type        String
   description String?
   basePrice   Int?
-  durationMin Int?        // Default duration in minutes
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  durationMin Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ServiceRequest {
-  id           String        @id @default(uuid())
-  customerId   String
-  customer     User          @relation(fields: [customerId], references: [id])
-  serviceType  String
-  style        String?
-  placement    String?
-  size         String?
-  description  String?
-  status       String        @default("DRAFT")
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  quotes       Quote[]
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    User     @relation(fields: [customerId], references: [id])
+  serviceType String
+  style       String?
+  placement   String?
+  size        String?
+  description String?
+  status      String   @default("DRAFT")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  quotes      Quote[]
 }
 
 model Quote {
@@ -91,17 +113,26 @@ model Quote {
 }
 
 model Booking {
-  id         String        @id @default(uuid())
-  customerId String
-  customer   User          @relation("CustomerBookings", fields: [customerId], references: [id])
-  artistId   String
-  artist     User          @relation("ArtistBookings", fields: [artistId], references: [id])
-  quoteId    String?
-  quote      Quote?        @relation(fields: [quoteId], references: [id])
-  startTime  DateTime
-  endTime    DateTime
-  status     String        @default("PENDING_DEPOSIT")
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  review     Review?
+  id              String         @id @default(uuid())
+  customerId      String
+  customer        User           @relation("CustomerBookings", fields: [customerId], references: [id])
+  artistId        String
+  artist          User           @relation("ArtistBookings", fields: [artistId], references: [id])
+  portfolioItemId String?
+  portfolioItem   PortfolioItem? @relation(fields: [portfolioItemId], references: [id])
+  customRequestId String?
+  customRequest   CustomRequest? @relation(fields: [customRequestId], references: [id])
+  quoteId         String?
+  quote           Quote?         @relation(fields: [quoteId], references: [id])
+  totalPrice      Int            @default(0)
+  depositAmount   Int            @default(0)
+  durationMin     Int            @default(60)
+  startTime       DateTime
+  endTime         DateTime
+  status          String         @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED, REJECTED, PENDING_DEPOSIT, CONFIRMED, COMPLETED, CANCELLED
+  rejectReason    String?
+  note            String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  review          Review?
 }
