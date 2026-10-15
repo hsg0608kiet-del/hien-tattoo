@@ -32,7 +32,6 @@ export async function POST(request: Request) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // Find valid artist/admin
       let targetArtistId = artistId;
       const artistExists = await tx.user.findUnique({ where: { id: targetArtistId } });
       if (!artistExists) {
@@ -40,7 +39,6 @@ export async function POST(request: Request) {
         if (firstAdmin) targetArtistId = firstAdmin.id;
       }
 
-      // Check overlapping bookings
       const overlappingBookings = await tx.booking.findMany({
         where: {
           artistId: targetArtistId,
@@ -60,7 +58,6 @@ export async function POST(request: Request) {
         throw new Error('SLOT_TAKEN');
       }
 
-      // Create ServiceRequest & Quote for compatibility
       const serviceRequest = await tx.serviceRequest.create({
         data: {
           customerId: finalCustomerId,
@@ -81,7 +78,6 @@ export async function POST(request: Request) {
         }
       });
 
-      // If booking from a CustomRequest, mark CustomRequest as BOOKED
       if (customRequestId) {
         await tx.customRequest.update({
           where: { id: customRequestId },
@@ -89,7 +85,6 @@ export async function POST(request: Request) {
         });
       }
 
-      // Create Booking (starts as PENDING_APPROVAL so Admin can Approve/Reject, or Client can pay deposit)
       const booking = await tx.booking.create({
         data: {
           customerId: finalCustomerId,

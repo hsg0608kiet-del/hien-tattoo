@@ -17,7 +17,6 @@ export async function PATCH(
     const body = await request.json();
     const role = (session.user as any).role;
 
-    // 1. Admin quotes price & estimated duration, or rejects
     if (role === 'ADMIN' && body.action === 'QUOTE') {
       const { quotedPrice, estimatedDuration, adminNote } = body;
       if (!quotedPrice || !estimatedDuration) {
@@ -51,7 +50,6 @@ export async function PATCH(
       return NextResponse.json({ request: updated });
     }
 
-    // 2. Client accepts or declines quote
     if (body.action === 'ACCEPT_QUOTE') {
       const updated = await prisma.customRequest.update({
         where: { id },

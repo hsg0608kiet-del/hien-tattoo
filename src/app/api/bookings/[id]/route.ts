@@ -25,7 +25,7 @@ export async function PATCH(
       const updated = await prisma.booking.update({
         where: { id },
         data: {
-          status: 'APPROVED', // Approved by Admin -> Ready for deposit or confirmed
+          status: 'APPROVED',
           rejectReason: null
         }
       });

@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("=== KIỂM TRA CÁC PHÂN HỆ MỞ RỘNG TRÊN DATABASE ===\n");
+  console.log("=== KIỂM TRA DỮ LIỆU DATABASE ===\n");
 
   const users = await prisma.user.findMany();
   console.log(`[1] Users (${users.length}):`);
@@ -25,7 +25,7 @@ async function main() {
   console.log(`\n[3] Yêu Cầu Ý Tưởng Custom (${customRequests.length}):`);
   customRequests.forEach((c) =>
     console.log(
-      `   - Khách: ${c.client.name} (${c.client.phone}) | Vị trí: ${c.placement} | Trạng thái: ${c.status} | Báo giá: ${c.quotedPrice || 'Chưa báo'}đ`
+      `   - Khách: ${c.client.name} (${c.client.phone}) | Vị trí: ${c.placement} | Trạng thái: ${c.status}`
     )
   );
 
@@ -35,11 +35,9 @@ async function main() {
   console.log(`\n[4] Đơn Đặt Lịch (${bookings.length}):`);
   bookings.forEach((b) =>
     console.log(
-      `   - Mã: ${b.id.slice(0, 8)} | Khách: ${b.customer.phone} | Trạng thái: ${b.status} | Mẫu: ${b.portfolioItem?.title || 'Custom'}`
+      `   - Mã: ${b.id.slice(0, 8)} | Khách: ${b.customer.phone} | Trạng thái: ${b.status}`
     )
   );
-
-  console.log("\n=== TẤT CẢ DỮ LIỆU & SCHEMA HOẠT ĐỘNG CHÍNH XÁC! ===");
 }
 
 main()

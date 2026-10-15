@@ -538,7 +538,6 @@ function AdminDashboardContent() {
       {/* TAB 3: PORTFOLIO MANAGEMENT */}
       {activeTab === 'PORTFOLIO' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Create Form */}
           <div className="glass-dark p-6 rounded-2xl border border-neutral-800 h-fit">
             <h3 className="text-xl font-bold text-white mb-4">Đăng Bài / Hình Xăm Mẫu Mới</h3>
             <form onSubmit={handleCreatePortfolio} className="space-y-4 text-sm">
@@ -639,7 +638,6 @@ function AdminDashboardContent() {
             </form>
           </div>
 
-          {/* Portfolio List */}
           <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {portfolioItems.map((item) => (
               <div
@@ -685,4 +683,3 @@ export default function AdminDashboard() {
     </Suspense>
   );
 }
-
