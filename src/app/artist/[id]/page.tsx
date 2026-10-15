@@ -2,9 +2,12 @@ import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-export default async function ArtistProfilePage({ params }: { params: { id: string } }) {
+export const dynamic = 'force-dynamic';
+
+export default async function ArtistProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const artist = await prisma.user.findUnique({
-    where: { id: params.id, role: 'ARTIST' },
+    where: { id },
     include: {
       portfolioItems: {
         orderBy: { createdAt: 'desc' }
