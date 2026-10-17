@@ -132,6 +132,8 @@ model Booking {
   status          String         @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED, REJECTED, PENDING_DEPOSIT, CONFIRMED, COMPLETED, CANCELLED
   rejectReason    String?
   note            String?
+  reminderSent    Boolean        @default(false)
+  reminderSentAt  DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   review          Review?

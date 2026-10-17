@@ -42,6 +42,42 @@ function AdminDashboardContent() {
   const [portfolioDuration, setPortfolioDuration] = useState('120');
   const [submitting, setSubmitting] = useState(false);
 
+  // Reminder Job & HTML Preview Modal State
+  const [runningReminder, setRunningReminder] = useState(false);
+  const [reminderPreview, setReminderPreview] = useState<{
+    message: string;
+    customerHtml?: string;
+    ownerHtml?: string;
+    activeView: 'CUSTOMER' | 'OWNER';
+  } | null>(null);
+
+  const handleTriggerReminderJob = async (bookingId?: string) => {
+    setRunningReminder(true);
+    try {
+      const res = await fetch('/api/cron/reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId, hoursAhead: 72, force: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const firstResult = data.results?.[0];
+        setReminderPreview({
+          message: data.message,
+          customerHtml: firstResult?.previewCustomerHtml,
+          ownerHtml: firstResult?.previewOwnerHtml,
+          activeView: 'CUSTOMER',
+        });
+        await fetchAllAdminData();
+      } else {
+        alert(data.error || 'Lỗi khi chạy Job nhắc lịch hẹn!');
+      }
+    } catch (err) {
+      alert('Lỗi kết nối máy chủ!');
+    }
+    setRunningReminder(false);
+  };
+
   const fetchAllAdminData = async () => {
     setLoading(true);
     try {
@@ -204,51 +240,124 @@ function AdminDashboardContent() {
   return (
     <div className="w-full max-w-7xl animate-slide-up">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 sm:mb-8 gap-3 sm:gap-4">
         <div>
           <span className="text-xs px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-semibold">
             ADMIN STUDIO PORTAL
           </span>
-          <h1 className="text-3xl md:text-4xl font-bold text-white mt-2">Quản Trị Hiển Tattoo Studio</h1>
-          <p className="text-neutral-400 text-sm">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mt-2">Quản Trị Hiển Tattoo Studio</h1>
+          <p className="text-neutral-400 text-xs sm:text-sm mt-1">
             Quản lý duyệt lịch hẹn, báo giá ý tưởng riêng (Custom Tattoo) và đăng tải Portfolio hình mẫu.
           </p>
         </div>
+
+        <button
+          type="button"
+          disabled={runningReminder}
+          onClick={() => handleTriggerReminderJob()}
+          className="w-full md:w-auto px-5 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs sm:text-sm transition-all shadow-lg disabled:opacity-50 shrink-0"
+        >
+          {runningReminder ? '⏳ Đang gửi mail nhắc lịch...' : '🔔 Chạy Job Nhắc Lịch Hẹn Ngay'}
+        </button>
       </div>
 
+      {/* Modal Xem Trước Email HTML Nhắc Lịch */}
+      {reminderPreview && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+          <div className="w-full max-w-3xl bg-neutral-950 border border-neutral-800 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-4 sm:p-5 border-b border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-neutral-900">
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-emerald-400">✓ {reminderPreview.message}</h3>
+                <p className="text-xs text-neutral-400 mt-0.5">
+                  Xem trước giao diện Email HTML đã tạo cho Khách hàng & Chủ Studio:
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReminderPreview(null)}
+                className="self-end sm:self-auto px-3.5 py-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-xs font-bold text-white"
+              >
+                ✕ Đóng
+              </button>
+            </div>
+
+            {reminderPreview.customerHtml && (
+              <>
+                <div className="flex gap-2 p-3 bg-neutral-900/60 border-b border-neutral-800">
+                  <button
+                    type="button"
+                    onClick={() => setReminderPreview({ ...reminderPreview, activeView: 'CUSTOMER' })}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                      reminderPreview.activeView === 'CUSTOMER'
+                        ? 'bg-emerald-500 text-black'
+                        : 'bg-neutral-900 text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    📧 Template Gửi Khách Hàng
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReminderPreview({ ...reminderPreview, activeView: 'OWNER' })}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                      reminderPreview.activeView === 'OWNER'
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-neutral-900 text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    ⚡ Template Gửi Chủ Studio (Admin)
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto bg-neutral-950 p-2 sm:p-4">
+                  <iframe
+                    title="Email HTML Preview"
+                    srcDoc={
+                      reminderPreview.activeView === 'CUSTOMER'
+                        ? reminderPreview.customerHtml
+                        : reminderPreview.ownerHtml
+                    }
+                    className="w-full h-[460px] rounded-xl border border-neutral-800 bg-neutral-950"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* KPI Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-6 mb-6 sm:mb-8">
         <div
           onClick={() => setActiveTab('BOOKINGS')}
-          className="glass-dark p-6 rounded-2xl border border-neutral-800 cursor-pointer hover:border-amber-500/50 transition-colors"
+          className="glass-dark p-4 sm:p-6 rounded-2xl border border-neutral-800 cursor-pointer hover:border-amber-500/50 transition-colors"
         >
-          <div className="text-sm text-neutral-400 mb-1">Đơn Đặt Lịch Chờ Duyệt</div>
-          <div className="text-3xl font-bold text-amber-400">{pendingBookingsCount} Yêu cầu</div>
+          <div className="text-xs sm:text-sm text-neutral-400 mb-1">Đơn Đặt Lịch Chờ Duyệt</div>
+          <div className="text-2xl sm:text-3xl font-bold text-amber-400">{pendingBookingsCount} Yêu cầu</div>
           <div className="text-xs text-neutral-500 mt-1">Tổng cộng: {bookings.length} lịch hẹn</div>
         </div>
         <div
           onClick={() => setActiveTab('CUSTOM_REQUESTS')}
-          className="glass-dark p-6 rounded-2xl border border-neutral-800 cursor-pointer hover:border-emerald-500/50 transition-colors"
+          className="glass-dark p-4 sm:p-6 rounded-2xl border border-neutral-800 cursor-pointer hover:border-emerald-500/50 transition-colors"
         >
-          <div className="text-sm text-neutral-400 mb-1">Ý Tưởng Custom Chờ Báo Giá</div>
-          <div className="text-3xl font-bold text-emerald-400">{pendingCustomCount} Ý tưởng</div>
+          <div className="text-xs sm:text-sm text-neutral-400 mb-1">Ý Tưởng Custom Chờ Báo Giá</div>
+          <div className="text-2xl sm:text-3xl font-bold text-emerald-400">{pendingCustomCount} Ý tưởng</div>
           <div className="text-xs text-neutral-500 mt-1">Tổng cộng: {customRequests.length} yêu cầu</div>
         </div>
         <div
           onClick={() => setActiveTab('PORTFOLIO')}
-          className="glass-dark p-6 rounded-2xl border border-neutral-800 cursor-pointer hover:border-purple-500/50 transition-colors"
+          className="glass-dark p-4 sm:p-6 rounded-2xl border border-neutral-800 cursor-pointer hover:border-purple-500/50 transition-colors"
         >
-          <div className="text-sm text-neutral-400 mb-1">Kho Hình Xăm Mẫu (Portfolio)</div>
-          <div className="text-3xl font-bold text-purple-400">{portfolioItems.length} Tác phẩm</div>
+          <div className="text-xs sm:text-sm text-neutral-400 mb-1">Kho Hình Xăm Mẫu (Portfolio)</div>
+          <div className="text-2xl sm:text-3xl font-bold text-purple-400">{portfolioItems.length} Tác phẩm</div>
           <div className="text-xs text-neutral-500 mt-1">Đã niêm yết giá & thời lượng</div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-3 mb-8 border-b border-neutral-800 pb-4">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3 mb-6 sm:mb-8 border-b border-neutral-800 pb-4">
         <button
           onClick={() => setActiveTab('BOOKINGS')}
-          className={`px-6 py-3 rounded-xl font-bold text-sm transition-all ${
+          className={`w-full sm:w-auto px-5 sm:px-6 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all text-left sm:text-center ${
             activeTab === 'BOOKINGS'
               ? 'bg-white text-black shadow-lg'
               : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
@@ -258,7 +367,7 @@ function AdminDashboardContent() {
         </button>
         <button
           onClick={() => setActiveTab('CUSTOM_REQUESTS')}
-          className={`px-6 py-3 rounded-xl font-bold text-sm transition-all ${
+          className={`w-full sm:w-auto px-5 sm:px-6 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all text-left sm:text-center ${
             activeTab === 'CUSTOM_REQUESTS'
               ? 'bg-amber-400 text-black shadow-lg'
               : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
@@ -268,7 +377,7 @@ function AdminDashboardContent() {
         </button>
         <button
           onClick={() => setActiveTab('PORTFOLIO')}
-          className={`px-6 py-3 rounded-xl font-bold text-sm transition-all ${
+          className={`w-full sm:w-auto px-5 sm:px-6 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all text-left sm:text-center ${
             activeTab === 'PORTFOLIO'
               ? 'bg-purple-500 text-white shadow-lg'
               : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
@@ -284,10 +393,10 @@ function AdminDashboardContent() {
           {bookings.map((b) => (
             <div
               key={b.id}
-              className="glass-dark p-6 rounded-2xl border border-neutral-800 flex flex-col lg:flex-row justify-between gap-6"
+              className="glass-dark p-4 sm:p-6 rounded-2xl border border-neutral-800 flex flex-col lg:flex-row justify-between gap-4 sm:gap-6"
             >
-              <div className="space-y-2 flex-1">
-                <div className="flex items-center gap-3 flex-wrap">
+              <div className="space-y-2.5 flex-1 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                   <span className="text-xs font-mono text-neutral-500">#{b.id.slice(0, 8)}</span>
                   <span
                     className={`text-xs px-3 py-1 rounded-full font-bold ${
@@ -307,7 +416,12 @@ function AdminDashboardContent() {
                     {b.status === 'CANCELLED' && 'KHÁCH ĐÃ HỦY'}
                     {b.status === 'COMPLETED' && 'HOÀN THÀNH'}
                   </span>
-                  <h3 className="text-lg font-bold text-white">
+                  {b.reminderSent && (
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                      📧 Đã nhắc lịch
+                    </span>
+                  )}
+                  <h3 className="text-base sm:text-lg font-bold text-white w-full sm:w-auto">
                     {b.portfolioItem
                       ? `Mẫu Portfolio: ${b.portfolioItem.title}`
                       : b.customRequest
@@ -316,18 +430,18 @@ function AdminDashboardContent() {
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-sm text-neutral-300">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-2 text-xs sm:text-sm text-neutral-300">
+                  <div className="bg-neutral-900/40 sm:bg-transparent p-2.5 sm:p-0 rounded-xl">
                     <span className="text-neutral-500 block text-xs">Khách hàng & SĐT:</span>
                     <strong className="text-white">{b.customer?.name}</strong> —{' '}
                     <span className="text-emerald-400 font-semibold">{b.customer?.phone || b.customer?.email}</span>
                   </div>
-                  <div>
+                  <div className="bg-neutral-900/40 sm:bg-transparent p-2.5 sm:p-0 rounded-xl">
                     <span className="text-neutral-500 block text-xs">Khung giờ hẹn:</span>
                     <strong className="text-white">{new Date(b.startTime).toLocaleString('vi-VN')}</strong> (
                     {b.durationMin || 90} phút)
                   </div>
-                  <div>
+                  <div className="bg-neutral-900/40 sm:bg-transparent p-2.5 sm:p-0 rounded-xl">
                     <span className="text-neutral-500 block text-xs">Chi phí & Tiền cọc:</span>
                     <strong className="text-amber-400">
                       {(b.totalPrice || b.quote?.totalPrice || 0).toLocaleString('vi-VN')} ₫
@@ -349,14 +463,14 @@ function AdminDashboardContent() {
                 )}
               </div>
 
-              {/* Approve / Reject Actions */}
-              <div className="flex flex-col justify-center gap-2 min-w-[240px]">
+              {/* Approve / Reject / Reminder Actions */}
+              <div className="flex flex-col justify-center gap-2 w-full lg:w-64 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-neutral-800">
                 {b.status === 'PENDING_APPROVAL' && (
                   <>
                     <button
                       disabled={submitting}
                       onClick={() => handleApproveBooking(b.id)}
-                      className="w-full py-2.5 px-4 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors text-sm"
+                      className="w-full py-3 lg:py-2.5 px-4 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors text-xs sm:text-sm"
                     >
                       ✓ Chấp Nhận (Approve)
                     </button>
@@ -372,13 +486,13 @@ function AdminDashboardContent() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleRejectBooking(b.id)}
-                            className="flex-1 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700"
+                            className="flex-1 py-2 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700"
                           >
                             Xác Nhận Từ Chối
                           </button>
                           <button
                             onClick={() => setRejectingBookingId(null)}
-                            className="px-3 py-1.5 bg-neutral-800 text-neutral-400 text-xs rounded-lg"
+                            className="px-3 py-2 bg-neutral-800 text-neutral-400 text-xs rounded-lg"
                           >
                             Đóng
                           </button>
@@ -390,12 +504,23 @@ function AdminDashboardContent() {
                           setRejectingBookingId(b.id);
                           setRejectReason('');
                         }}
-                        className="w-full py-2.5 px-4 bg-red-500/10 border border-red-500/30 text-red-400 font-semibold rounded-xl hover:bg-red-500/20 transition-colors text-sm"
+                        className="w-full py-3 lg:py-2.5 px-4 bg-red-500/10 border border-red-500/30 text-red-400 font-semibold rounded-xl hover:bg-red-500/20 transition-colors text-xs sm:text-sm"
                       >
                         ✕ Từ Chối (Reject)
                       </button>
                     )}
                   </>
+                )}
+
+                {b.status !== 'REJECTED' && b.status !== 'CANCELLED' && (
+                  <button
+                    type="button"
+                    disabled={runningReminder}
+                    onClick={() => handleTriggerReminderJob(b.id)}
+                    className="w-full py-2.5 px-4 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-amber-300 font-semibold rounded-xl transition-colors text-xs"
+                  >
+                    📧 Gửi Mail Nhắc Lịch (HTML)
+                  </button>
                 )}
               </div>
             </div>
@@ -405,27 +530,27 @@ function AdminDashboardContent() {
 
       {/* TAB 2: CUSTOM REQUEST QUOTING */}
       {activeTab === 'CUSTOM_REQUESTS' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {customRequests.map((req) => {
             const images: string[] = JSON.parse(req.imagesJson || '[]');
             return (
               <div
                 key={req.id}
-                className="glass-dark p-6 rounded-2xl border border-neutral-800 flex flex-col justify-between space-y-4"
+                className="glass-dark p-4 sm:p-6 rounded-2xl border border-neutral-800 flex flex-col justify-between space-y-4"
               >
                 <div>
-                  <div className="flex justify-between items-start gap-2 mb-3">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-3">
                     <div>
                       <span className="text-xs text-neutral-400">
                         Khách hàng: <strong className="text-white">{req.client?.name}</strong> (
                         <span className="text-emerald-400">{req.client?.phone}</span>)
                       </span>
-                      <h3 className="text-lg font-bold text-white mt-1">
+                      <h3 className="text-base sm:text-lg font-bold text-white mt-1">
                         Vị trí: {req.placement} — Kích thước: {req.size}
                       </h3>
                     </div>
                     <span
-                      className={`text-xs px-3 py-1 rounded-full font-bold ${
+                      className={`text-xs px-3 py-1 rounded-full font-bold self-start whitespace-nowrap ${
                         req.status === 'PENDING'
                           ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                           : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
@@ -435,18 +560,18 @@ function AdminDashboardContent() {
                     </span>
                   </div>
 
-                  <p className="text-sm text-neutral-300 bg-neutral-900/60 p-3.5 rounded-xl border border-neutral-800 mb-4">
+                  <p className="text-xs sm:text-sm text-neutral-300 bg-neutral-900/60 p-3.5 rounded-xl border border-neutral-800 mb-4">
                     {req.description}
                   </p>
 
                   {images.length > 0 && (
-                    <div className="flex gap-3 overflow-x-auto pb-2 mb-4">
+                    <div className="flex gap-2.5 sm:gap-3 overflow-x-auto pb-2 mb-4">
                       {images.map((img, i) => (
                         <img
                           key={i}
                           src={img}
                           alt="Client Idea"
-                          className="w-28 h-28 rounded-xl object-cover border border-neutral-700 shrink-0"
+                          className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl object-cover border border-neutral-700 shrink-0"
                         />
                       ))}
                     </div>
@@ -466,9 +591,9 @@ function AdminDashboardContent() {
 
                 {/* Quote Input Form for Admin */}
                 {quotingId === req.id ? (
-                  <div className="p-4 rounded-2xl bg-neutral-900 border border-amber-500/40 space-y-3">
-                    <h4 className="font-bold text-sm text-amber-300">Nhập Báo Giá & Thời Gian Thực Hiện</h4>
-                    <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3.5 sm:p-4 rounded-2xl bg-neutral-900 border border-amber-500/40 space-y-3">
+                    <h4 className="font-bold text-xs sm:text-sm text-amber-300">Nhập Báo Giá & Thời Gian Thực Hiện</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs text-neutral-400 mb-1">Giá tiền báo khách (VNĐ)</label>
                         <input
@@ -476,7 +601,7 @@ function AdminDashboardContent() {
                           value={quotedPrice}
                           onChange={(e) => setQuotedPrice(e.target.value)}
                           placeholder="VD: 2500000"
-                          className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-white"
+                          className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-sm text-white"
                         />
                       </div>
                       <div>
@@ -486,7 +611,7 @@ function AdminDashboardContent() {
                           value={estimatedDuration}
                           onChange={(e) => setEstimatedDuration(e.target.value)}
                           placeholder="VD: 120"
-                          className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-sm text-white"
+                          className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-sm text-white"
                         />
                       </div>
                     </div>
@@ -497,7 +622,7 @@ function AdminDashboardContent() {
                         value={adminNote}
                         onChange={(e) => setAdminNote(e.target.value)}
                         placeholder="VD: Mẫu này đi nét mảnh tầm 2 tiếng là đẹp hoàn hảo nhé!"
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white"
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-xs text-white"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -524,7 +649,7 @@ function AdminDashboardContent() {
                       setEstimatedDuration(req.estimatedDuration ? String(req.estimatedDuration) : '120');
                       setAdminNote(req.adminNote || '');
                     }}
-                    className="w-full py-3 bg-white text-black font-bold rounded-xl text-sm hover:bg-neutral-200 transition-colors"
+                    className="w-full py-3 bg-white text-black font-bold rounded-xl text-xs sm:text-sm hover:bg-neutral-200 transition-colors"
                   >
                     {req.status === 'PENDING' ? 'Nhập Báo Giá & Thời Gian Ước Tính' : 'Cập Nhật Lại Báo Giá'}
                   </button>
@@ -537,9 +662,9 @@ function AdminDashboardContent() {
 
       {/* TAB 3: PORTFOLIO MANAGEMENT */}
       {activeTab === 'PORTFOLIO' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="glass-dark p-6 rounded-2xl border border-neutral-800 h-fit">
-            <h3 className="text-xl font-bold text-white mb-4">Đăng Bài / Hình Xăm Mẫu Mới</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+          <div className="glass-dark p-4 sm:p-6 rounded-2xl border border-neutral-800 h-fit">
+            <h3 className="text-lg sm:text-xl font-bold text-white mb-4">Đăng Bài / Hình Xăm Mẫu Mới</h3>
             <form onSubmit={handleCreatePortfolio} className="space-y-4 text-sm">
               <div>
                 <label className="block text-xs text-neutral-400 mb-1">Tên tác phẩm / Hình mẫu (*)</label>
@@ -567,11 +692,11 @@ function AdminDashboardContent() {
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
                   placeholder="https://images.unsplash.com/..."
-                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-white"
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-neutral-400 mb-1">Giá tiền dự kiến (VNĐ) (*)</label>
                   <input
@@ -596,14 +721,14 @@ function AdminDashboardContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-neutral-400 mb-1">Phong cách (Style)</label>
                   <input
                     type="text"
                     value={style}
                     onChange={(e) => setStyle(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-white"
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-white"
                   />
                 </div>
                 <div>
@@ -612,7 +737,7 @@ function AdminDashboardContent() {
                     type="text"
                     value={placement}
                     onChange={(e) => setPlacement(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-white"
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-white"
                   />
                 </div>
               </div>
@@ -624,7 +749,7 @@ function AdminDashboardContent() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Mô tả ý nghĩa hoặc kỹ thuật thực hiện..."
-                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2 text-white"
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-white"
                 />
               </div>
 
@@ -662,7 +787,7 @@ function AdminDashboardContent() {
                 <div className="p-4 pt-0">
                   <button
                     onClick={() => handleDeletePortfolio(item.id)}
-                    className="w-full py-2 bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-red-400 rounded-xl text-xs transition-colors"
+                    className="w-full py-2.5 bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-red-400 rounded-xl text-xs transition-colors"
                   >
                     Xóa mẫu này
                   </button>

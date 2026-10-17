@@ -158,21 +158,21 @@ function BookingWizardContent() {
     (bookingMode === 'CUSTOM' && !!selectedCustomId);
 
   return (
-    <div className="w-full max-w-4xl mx-auto glass-dark p-8 md:p-12 rounded-3xl animate-slide-up border border-neutral-800 shadow-2xl">
-      <div className="text-center mb-8">
-        <p className="text-neutral-400 text-xs">
+    <div className="w-full max-w-4xl mx-auto glass-dark p-4 sm:p-8 md:p-12 rounded-2xl sm:rounded-3xl animate-slide-up border border-neutral-800 shadow-2xl">
+      <div className="text-center mb-6 sm:mb-8">
+        <p className="text-neutral-400 text-xs break-words">
           Khách hàng: <span className="text-white font-semibold">{session?.user?.name}</span> — SĐT:{' '}
           <span className="text-emerald-400 font-semibold">{(session?.user as any)?.phone || session?.user?.email}</span>
         </p>
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center justify-between mb-10 relative max-w-lg mx-auto">
+      <div className="flex items-center justify-between mb-8 sm:mb-10 relative max-w-xs sm:max-w-lg mx-auto">
         <div className="absolute top-1/2 left-0 w-full h-1 bg-neutral-800 -z-10 rounded-full transform -translate-y-1/2"></div>
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold border-2 transition-colors ${
               step >= i ? 'bg-white text-black border-white' : 'bg-neutral-900 text-neutral-500 border-neutral-700'
             }`}
           >
@@ -181,7 +181,7 @@ function BookingWizardContent() {
         ))}
       </div>
 
-      <h2 className="text-2xl font-bold mb-6 text-center">
+      <h2 className="text-lg sm:text-2xl font-bold mb-5 sm:mb-6 text-center leading-snug">
         {step === 1 && 'Bước 1: Chọn Hình Xăm Mẫu hoặc Ý Tưởng Đã Báo Giá'}
         {step === 2 && 'Bước 2: Chọn Ngày & Khung Giờ Trống'}
         {step === 3 && 'Bước 3: Xác Nhận Yêu Cầu Đặt Lịch'}
@@ -189,12 +189,12 @@ function BookingWizardContent() {
 
       {/* STEP 1 */}
       {step === 1 && (
-        <div className="space-y-6">
-          <div className="flex gap-3 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
+        <div className="space-y-5 sm:space-y-6">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 bg-neutral-900 p-1.5 rounded-2xl border border-neutral-800">
             <button
               type="button"
               onClick={() => setBookingMode('PORTFOLIO')}
-              className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+              className={`flex-1 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                 bookingMode === 'PORTFOLIO' ? 'bg-white text-black' : 'text-neutral-400 hover:text-white'
               }`}
             >
@@ -203,7 +203,7 @@ function BookingWizardContent() {
             <button
               type="button"
               onClick={() => setBookingMode('CUSTOM')}
-              className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+              className={`flex-1 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
                 bookingMode === 'CUSTOM' ? 'bg-amber-400 text-black' : 'text-neutral-400 hover:text-white'
               }`}
             >
@@ -212,14 +212,14 @@ function BookingWizardContent() {
           </div>
 
           {bookingMode === 'PORTFOLIO' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[420px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 max-h-[420px] overflow-y-auto pr-1">
               {portfolioItems.map((item) => {
                 const selected = selectedPortfolioId === item.id;
                 return (
                   <div
                     key={item.id}
                     onClick={() => setSelectedPortfolioId(item.id)}
-                    className={`flex gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${
+                    className={`flex gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl border cursor-pointer transition-all ${
                       selected
                         ? 'border-white bg-white/10 shadow-lg'
                         : 'border-neutral-800 bg-neutral-900/40 hover:border-neutral-600'
@@ -228,14 +228,14 @@ function BookingWizardContent() {
                     <img
                       src={item.imageUrl}
                       alt={item.title}
-                      className="w-24 h-24 rounded-xl object-cover bg-neutral-800 shrink-0"
+                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover bg-neutral-800 shrink-0"
                     />
-                    <div className="flex flex-col justify-between flex-1">
+                    <div className="flex flex-col justify-between flex-1 min-w-0">
                       <div>
-                        <h4 className="font-bold text-white text-base">{item.title}</h4>
-                        <p className="text-xs text-neutral-400">{item.style} • {item.placement}</p>
+                        <h4 className="font-bold text-white text-sm sm:text-base truncate">{item.title}</h4>
+                        <p className="text-xs text-neutral-400 truncate">{item.style} • {item.placement}</p>
                       </div>
-                      <div className="flex justify-between items-center mt-2 pt-2 border-t border-neutral-800 text-xs">
+                      <div className="flex flex-wrap justify-between items-center gap-1 mt-2 pt-2 border-t border-neutral-800 text-xs">
                         <span className="font-bold text-amber-400">{item.estimatedPrice.toLocaleString('vi-VN')} ₫</span>
                         <span className="text-neutral-300">⏱ {item.estimatedDuration} phút</span>
                       </div>
@@ -245,15 +245,15 @@ function BookingWizardContent() {
               })}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {customRequests.length === 0 ? (
-                <div className="text-center py-10 bg-neutral-900/40 rounded-2xl border border-neutral-800">
-                  <p className="text-neutral-400 text-sm mb-4">
+                <div className="text-center py-8 sm:py-10 px-4 bg-neutral-900/40 rounded-2xl border border-neutral-800">
+                  <p className="text-neutral-400 text-xs sm:text-sm mb-4">
                     Bạn chưa có yêu cầu ý tưởng riêng nào được Admin báo giá.
                   </p>
                   <Link
                     href="/custom-request"
-                    className="inline-block px-6 py-2.5 bg-amber-400 text-black font-bold rounded-full text-xs hover:bg-amber-300"
+                    className="inline-block w-full sm:w-auto px-6 py-3 bg-amber-400 text-black font-bold rounded-full text-xs hover:bg-amber-300"
                   >
                     + Gửi Ý Tưởng Xăm Riêng Ngay
                   </Link>
@@ -266,24 +266,24 @@ function BookingWizardContent() {
                     <div
                       key={req.id}
                       onClick={() => setSelectedCustomId(req.id)}
-                      className={`flex gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${
+                      className={`flex flex-col sm:flex-row gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl border cursor-pointer transition-all ${
                         selected
                           ? 'border-amber-400 bg-amber-500/10'
                           : 'border-neutral-800 bg-neutral-900/40 hover:border-neutral-600'
                       }`}
                     >
                       {imgs[0] && (
-                        <img src={imgs[0]} alt="Custom" className="w-24 h-24 rounded-xl object-cover shrink-0" />
+                        <img src={imgs[0]} alt="Custom" className="w-full sm:w-24 h-36 sm:h-24 rounded-xl object-cover shrink-0" />
                       )}
-                      <div className="flex-1">
-                        <div className="flex justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap justify-between items-start gap-2">
                           <span className="text-xs font-bold text-amber-400">Ý tưởng riêng ({req.placement} - {req.size})</span>
-                          <span className="text-xs px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full">
+                          <span className="text-[11px] px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full">
                             Đã có báo giá
                           </span>
                         </div>
-                        <p className="text-sm text-white mt-1 line-clamp-2">{req.description}</p>
-                        <div className="flex gap-6 mt-3 text-xs text-neutral-300">
+                        <p className="text-xs sm:text-sm text-white mt-1 line-clamp-2">{req.description}</p>
+                        <div className="flex flex-wrap gap-3 sm:gap-6 mt-3 text-xs text-neutral-300">
                           <span>Báo giá: <strong className="text-amber-400">{req.quotedPrice?.toLocaleString('vi-VN')} ₫</strong></span>
                           <span>Thời lượng: <strong className="text-white">{req.estimatedDuration} phút</strong></span>
                         </div>
@@ -295,11 +295,11 @@ function BookingWizardContent() {
             </div>
           )}
 
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end pt-3 sm:pt-4">
             <button
               disabled={!canProceedStep1}
               onClick={() => setStep(2)}
-              className="px-8 py-3.5 bg-white text-black rounded-full font-bold disabled:opacity-50 hover:bg-neutral-200 transition-all"
+              className="w-full sm:w-auto px-8 py-3.5 bg-white text-black rounded-full font-bold disabled:opacity-50 hover:bg-neutral-200 transition-all text-sm sm:text-base"
             >
               Tiếp Tục Chọn Giờ →
             </button>
@@ -309,25 +309,25 @@ function BookingWizardContent() {
 
       {/* STEP 2 */}
       {step === 2 && (
-        <div className="space-y-6 animate-fade-in">
-          <div className="p-4 rounded-2xl bg-neutral-900/70 border border-neutral-800 flex justify-between items-center text-sm">
+        <div className="space-y-5 sm:space-y-6 animate-fade-in">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-neutral-900/70 border border-neutral-800 flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-xs sm:text-sm">
             <div>
               <span className="text-neutral-400">Mẫu đã chọn: </span>
               <strong className="text-white">
                 {bookingMode === 'PORTFOLIO' ? activePortfolio?.title : `Ý tưởng riêng (${activeCustom?.placement})`}
               </strong>
             </div>
-            <div className="text-right">
+            <div className="sm:text-right">
               <span className="text-amber-400 font-bold">{selectedPrice.toLocaleString('vi-VN')} ₫</span>
-              <span className="text-neutral-400 ml-3">({selectedDuration} phút)</span>
+              <span className="text-neutral-400 ml-2 sm:ml-3">({selectedDuration} phút)</span>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">Chọn Ngày Xăm</label>
+            <label className="block text-xs sm:text-sm font-medium text-neutral-300 mb-2">Chọn Ngày Xăm</label>
             <input
               type="date"
-              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white transition-colors"
+              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm sm:text-base text-white focus:outline-none focus:border-white transition-colors"
               value={date}
               min={new Date().toISOString().split('T')[0]}
               onChange={(e) => {
@@ -340,17 +340,17 @@ function BookingWizardContent() {
 
           {date && (
             <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">
-                Khung Giờ Trống Khả Dụng (Thời lượng ca xăm: {selectedDuration} phút)
+              <label className="block text-xs sm:text-sm font-medium text-neutral-300 mb-2">
+                Khung Giờ Trống Khả Dụng (Thời lượng: {selectedDuration} phút)
               </label>
               {loading ? (
-                <div className="animate-pulse flex gap-2 flex-wrap">
+                <div className="animate-pulse grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="w-28 h-12 bg-neutral-800 rounded-xl"></div>
+                    <div key={i} className="h-12 bg-neutral-800 rounded-xl"></div>
                   ))}
                 </div>
               ) : slots.length > 0 ? (
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3">
                   {slots.map((s, i) => {
                     const startStr = new Date(s.startTime).toLocaleTimeString('vi-VN', {
                       hour: '2-digit',
@@ -377,30 +377,33 @@ function BookingWizardContent() {
                   })}
                 </div>
               ) : (
-                <p className="text-neutral-500 py-4">Không còn khung giờ trống đủ {selectedDuration} phút trong ngày này.</p>
+                <p className="text-neutral-500 text-xs sm:text-sm py-4">Không còn khung giờ trống đủ {selectedDuration} phút trong ngày này.</p>
               )}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">Ghi chú thêm cho Artist (Tuỳ chọn)</label>
+            <label className="block text-xs sm:text-sm font-medium text-neutral-300 mb-2">Ghi chú thêm cho Artist (Tuỳ chọn)</label>
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="VD: Mình muốn ủ tê trước khi xăm, hoặc cần tư vấn thêm về kích thước..."
+              placeholder="VD: Mình muốn ủ tê trước khi xăm, hoặc cần tư vấn thêm..."
               className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white"
             />
           </div>
 
-          <div className="flex justify-between mt-8">
-            <button onClick={() => setStep(1)} className="px-6 py-3 text-neutral-400 hover:text-white transition-colors">
+          <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-6 sm:mt-8">
+            <button
+              onClick={() => setStep(1)}
+              className="w-full sm:w-auto px-6 py-3 rounded-full border border-neutral-800 sm:border-0 text-neutral-400 hover:text-white transition-colors text-sm"
+            >
               ← Quay Lại
             </button>
             <button
               disabled={!slot}
               onClick={() => setStep(3)}
-              className="px-8 py-3.5 bg-white text-black rounded-full font-bold disabled:opacity-50 hover:bg-neutral-200 transition-all"
+              className="w-full sm:w-auto px-8 py-3.5 bg-white text-black rounded-full font-bold disabled:opacity-50 hover:bg-neutral-200 transition-all text-sm sm:text-base"
             >
               Tiếp Tục Xác Nhận →
             </button>
@@ -410,18 +413,18 @@ function BookingWizardContent() {
 
       {/* STEP 3 */}
       {step === 3 && (
-        <div className="space-y-6 animate-fade-in">
-          <div className="p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-3 text-sm">
-            <h3 className="font-bold text-lg text-white mb-3">Chi Tiết Phiếu Đặt Lịch</h3>
-            <div className="flex justify-between">
+        <div className="space-y-5 sm:space-y-6 animate-fade-in">
+          <div className="p-4 sm:p-6 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-3 text-xs sm:text-sm">
+            <h3 className="font-bold text-base sm:text-lg text-white mb-2 sm:mb-3">Chi Tiết Phiếu Đặt Lịch</h3>
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
               <span className="text-neutral-400">Loại hình xăm:</span>
-              <span className="font-semibold text-white">
+              <span className="font-semibold text-white sm:text-right">
                 {bookingMode === 'PORTFOLIO'
                   ? `Mẫu có sẵn: ${activePortfolio?.title}`
                   : `Thiết kế riêng (${activeCustom?.placement})`}
               </span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
               <span className="text-neutral-400">Thời gian hẹn:</span>
               <span className="font-semibold text-emerald-400">{new Date(slot).toLocaleString('vi-VN')}</span>
             </div>
@@ -430,30 +433,33 @@ function BookingWizardContent() {
               <span className="font-semibold text-white">{selectedDuration} phút</span>
             </div>
             {note && (
-              <div className="flex justify-between">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                 <span className="text-neutral-400">Ghi chú:</span>
-                <span className="text-neutral-200">{note}</span>
+                <span className="text-neutral-200 sm:text-right">{note}</span>
               </div>
             )}
             <div className="h-px bg-neutral-800 my-3"></div>
-            <div className="flex justify-between text-base">
+            <div className="flex justify-between text-sm sm:text-base">
               <span className="text-neutral-400">Tổng chi phí dự kiến:</span>
               <span className="font-bold text-amber-400">{selectedPrice.toLocaleString('vi-VN')} ₫</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-neutral-400">Tiền cọc giữ lịch (25%):</span>
               <span className="font-semibold text-white">{selectedDeposit.toLocaleString('vi-VN')} ₫</span>
             </div>
           </div>
 
-          <div className="flex justify-between mt-8">
-            <button onClick={() => setStep(2)} className="px-6 py-3 text-neutral-400 hover:text-white transition-colors">
+          <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-6 sm:mt-8">
+            <button
+              onClick={() => setStep(2)}
+              className="w-full sm:w-auto px-6 py-3 rounded-full border border-neutral-800 sm:border-0 text-neutral-400 hover:text-white transition-colors text-sm"
+            >
               ← Quay Lại
             </button>
             <button
               disabled={loading}
               onClick={handleCreateBooking}
-              className="px-8 py-4 bg-emerald-500 text-white rounded-full font-bold hover:bg-emerald-600 transition-all shadow-lg"
+              className="w-full sm:w-auto px-8 py-4 bg-emerald-500 text-white rounded-full font-bold hover:bg-emerald-600 transition-all shadow-lg text-sm sm:text-base"
             >
               {loading ? 'Đang gửi yêu cầu...' : 'Xác Nhận Đặt Lịch Hẹn'}
             </button>
